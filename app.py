@@ -1,5 +1,6 @@
 from config import *
 import engine
+import scene
 class App:
     """
         Calls high level control functions (handle input, draw scene etc)
@@ -10,6 +11,7 @@ class App:
         self.setupPygame()
 		
         self.graphicsEngine = engine.Engine(self.screenWidth, self.screenHeight)
+        self.scene = scene.Scene()
         self.setupTimer()
         self.mainLoop()
     def setupPygame(self) -> None:
@@ -38,7 +40,7 @@ class App:
                 if (event.type == pg.KEYDOWN):
                     if (event.key == pg.K_ESCAPE):
                         running = False
-            self.graphicsEngine.renderScene()
+            self.graphicsEngine.renderScene(self.scene)
             self.calculateFramerate()
         self.quit()
     def calculateFramerate(self) -> None:
