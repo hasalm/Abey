@@ -9,7 +9,7 @@ class Engine:
         Responsible for drawing scenes
     """
 
-    def __init__(self, width: int, height: int):
+    def __init__(self, width, height):
         """
             Initialize a flat raytracing context
             
@@ -22,20 +22,12 @@ class Engine:
 
         self.makeAssets()
     
-    def makeAssets(self) -> None:
-        """ Make all the stuff. """
 
-        self.screenQuad = screen_quad.ScreenQuad()
 
-        self.colorBuffer = material.Material(self.screenWidth, self.screenHeight)
 
-        self.sphereBuffer = buffer.Buffer(size = 1024, binding = 1)
-        self.shader = self.createShader("shaders/frameBufferVertex.txt",
-                                        "shaders/frameBufferFragment.txt")
         
-        self.rayTracerShader = self.createComputeShader("shaders/rayTracer.txt")
     
-    def createShader(self, vertexFilepath: str, fragmentFilepath: str) -> int:
+    def createShader(self, vertexFilepath, fragmentFilepath):
         """
             Read source code, compile and link shaders.
             Returns the compiled and linked program.
@@ -52,7 +44,7 @@ class Engine:
         
         return shader
     
-    def createComputeShader(self, filepath: str) -> int:
+    def createComputeShader(self, filepath):
         """
             Read source code, compile and link shaders.
             Returns the compiled and linked program.
@@ -65,20 +57,40 @@ class Engine:
         
         return shader
 
+    def makeAssets(self) -> None:
+        """ Make all the stuff. """
+        self.screenQuad = screen_quad.ScreenQuad()
+        self.colorBuffer = material.Material(self.screenWidth, self.screenHeight)
+        self.sphereBuffer = buffer.Buffer(size = 1024, binding = 1, floatCount = 8)
+        self.planeBuffer = buffer.Buffer(size = 1024, binding = 2, floatCount = 20)
+        self.shader = self.createShader("shaders/frameBufferVertex.txt",
+                                        "shaders/frameBufferFragment.txt")
+        self.rayTracerShader = self.createComputeShader("shaders/rayTracer.txt")
+    def updateScene(self, _scene: scene.Scene) -> None:
+        scene.outDated = False
+        glUseProgram(self.rayTracerShader)
+
+        for i, _sphere in enumerate(_scene.spheres):
+            self.sphereBuffer.recordSphere(i, _sphere)
+        for i,_plane in enumerate(_scene.planes): 
+            self.planeBuffer.recordPlane(i, _plane)
+        self.sphereBuffer.readFrom()
+        self.planeBuffer.readFrom()
+        glUniform2iv(glGetUniformLocation(self.rayTracerShader, "objectCounts"), 1, _scene.objectCounts)
     def prepareScene(self, _scene: scene.Scene) -> None:
         """
             Send scene data to the shader.
         """
 
+        glUseProgram(self.rayTracerShader)
         glUniform3fv(glGetUniformLocation(self.rayTracerShader, "viewer.position"), 1, _scene.camera.position)
         glUniform3fv(glGetUniformLocation(self.rayTracerShader, "viewer.forwards"), 1, _scene.camera.forwards)
         glUniform3fv(glGetUniformLocation(self.rayTracerShader, "viewer.right"), 1, _scene.camera.right)
         glUniform3fv(glGetUniformLocation(self.rayTracerShader, "viewer.up"), 1, _scene.camera.up)
-        glUniform1i(glGetUniformLocation(self.rayTracerShader, "sphereCount"), len(_scene.spheres))
-        for i,_sphere in enumerate(_scene.spheres):
-            self.sphereBuffer.recordSphere(i, _sphere)
+
+        if _scene.outDated:
+            self.updateScene(_scene)
         
-        self.sphereBuffer.readFrom()
     def renderScene(self, _scene: scene.Scene) -> None:
         """
             Draw all objects in the scene
@@ -97,9 +109,6 @@ class Engine:
         self.drawScreen()
 
     def drawScreen(self) -> None:
-        """
-            Draw the screen after it's been compute raytraced.
-        """
         glUseProgram(self.shader)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         self.colorBuffer.readFrom()
@@ -116,4 +125,5 @@ class Engine:
         self.screenQuad.destroy()
         self.colorBuffer.destroy()
         self.sphereBuffer.destroy()
+        self.planeBuffer.destroy()
         glDeleteProgram(self.shader)
