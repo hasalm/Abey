@@ -8,7 +8,6 @@ class Camera:
             Create a new camera at the given position facing in the given direction.
             Parameters:
                 position (array [3,1])
-                direction (array [3,1])
         """
         self.position = np.array(position, dtype=np.float32)
         self.theta = 0
@@ -22,5 +21,15 @@ class Camera:
                 np.sin(np.deg2rad(self.phi))
             ], dtype=np.float32
         )
-        self.right = pyrr.vector3.cross(self.forwards, np.array([0,0,1],dtype=np.float32))
-        self.up = pyrr.vector3.cross(self.right, self.forwards)
+        self.right = pyrr.vector.normalize(
+            pyrr.vector3.cross(
+                self.forwards,
+                np.array([0,0,1],dtype=np.float32)
+            )
+        )
+        self.up = pyrr.vector.normalize(
+            pyrr.vector3.cross(
+            self.right,
+            self.forwards
+            )
+        )
