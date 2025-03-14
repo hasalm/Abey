@@ -13,10 +13,11 @@ class Buffer:
 
         self.deviceMemory = glGenBuffers(1)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.deviceMemory)
-        glBufferData(
+        glBufferStorage(
             GL_SHADER_STORAGE_BUFFER, self.hostMemory.nbytes, 
-            self.hostMemory, GL_DYNAMIC_READ)
+            self.hostMemory, GL_DYNAMIC_STORAGE_BIT)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, self.deviceMemory)
+        self.elements_written = 0
     
     def recordSphere(self, i: int, _sphere: sphere.Sphere) -> None:
         """
@@ -31,6 +32,7 @@ class Buffer:
         self.hostMemory[baseIndex : baseIndex + 3] = _sphere.center[:]
         self.hostMemory[baseIndex + 3] = _sphere.radius
         self.hostMemory[baseIndex + 4 : baseIndex + 7] = _sphere.color[:]
+        self.elements_written += 1
     
     def readFrom(self) -> None:
         """
@@ -38,8 +40,9 @@ class Buffer:
         """
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.deviceMemory)
-        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 8 * 4 * self.size, self.hostMemory)
+        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 8 * 4 * self.elements_written, self.hostMemory)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, self.binding, self.deviceMemory)
+        self.elements_written = 0
     
     def destroy(self) -> None:
         """
