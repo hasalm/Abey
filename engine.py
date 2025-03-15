@@ -1,6 +1,6 @@
 from config import *
-import screen_quad
 import material
+import screen_quad
 import buffer
 import scene
 
@@ -21,7 +21,7 @@ class Engine:
         self.screenHeight = height
 
         self.makeAssets()
-        glUseProgram(self.shader)
+        self.createNoiseTexture()
     
     def makeAssets(self) -> None:
         """ Make all the stuff. """
@@ -35,6 +35,36 @@ class Engine:
         self.shader = self.createShader("shaders/frameBufferVertex.txt",
                                         "shaders/frameBufferFragment.txt")    
         self.rayTracerShader = self.createComputeShader("shaders/rayTracer.txt")
+    def createNoiseTexture(self) -> None:
+        """
+            generate four screens' worth of noise
+        """
+        self.noiseData = np.zeros(self.screenHeight * self.screenWidth * 16, dtype=np.float32)
+        # random noise: (x y z -)
+        for i in range(self.screenHeight * self.screenWidth * 4):
+            radius = np.random.uniform(low = 0.0, high = 0.99)
+            theta = np.random.uniform(low = 0.0, high = 2 * np.pi)
+            phi = np.random.uniform(low = 0.0, high = np.pi)
+            variation = np.array(
+                [
+                    radius * np.cos(theta) * np.cos(phi),
+                    radius * np.sin(theta) * np.cos(phi),
+                    radius * np.sin(phi)
+                ], dtype=np.float32
+            )
+            self.noiseData[4*i:4*i+3] = variation[:]
+        self.noiseTexture = glGenTextures(1)
+        glActiveTexture(GL_TEXTURE2)
+        glBindTexture(GL_TEXTURE_2D, self.noiseTexture)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexImage2D(
+            GL_TEXTURE_2D,0,GL_RGBA32F,
+            4 * self.screenWidth,self.screenHeight,
+            0,GL_RGBA,GL_FLOAT,bytes(self.noiseData)
+        )
     def createShader(self, vertexFilepath: str, fragmentFilepath: str) -> None:
         """
             Read source code, compile and link shaders.
@@ -91,6 +121,8 @@ class Engine:
         
         self.sphereBuffer.readFrom()
         self.planeBuffer.readFrom()
+        glActiveTexture(GL_TEXTURE3)
+        glBindImageTexture(3, self.noiseTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F)
     def renderScene(self, _scene: scene.Scene) -> None:
         """
             Draw all objects in the scene
@@ -108,14 +140,14 @@ class Engine:
 
         self.drawScreen()
 
-    def drawScreen(self):
+    def drawScreen(self) -> None:
         glUseProgram(self.shader)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         self.colorBuffer.readFrom()
         self.screenQuad.draw()
         pg.display.flip()
     
-    def destroy(self):
+    def destroy(self) -> None:
         """
             Free any allocated memory
         """
@@ -124,4 +156,7 @@ class Engine:
         glDeleteProgram(self.rayTracerShader)
         self.screenQuad.destroy()
         self.colorBuffer.destroy()
+        self.sphereBuffer.destroy()
+        self.planeBuffer.destroy()
+        glDeleteTextures(1, (self.noiseTexture,))
         glDeleteProgram(self.shader)

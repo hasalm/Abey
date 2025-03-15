@@ -22,7 +22,8 @@ class Scene:
                     np.random.uniform(low = 0.3, high = 1.0),
                     np.random.uniform(low = 0.3, high = 1.0),
                     np.random.uniform(low = 0.3, high = 1.0)
-                ]
+                ],
+                roughness = np.random.uniform(low = 0.3, high = 0.8)
             ) for i in range(16)
         ]
         self.planes = [
@@ -39,7 +40,8 @@ class Scene:
                     np.random.uniform(low = 0.3, high= 1.0),
                     np.random.uniform(low = 0.3, high = 1.0),
                     np.random.uniform(low = 0.3, high = 1.0)
-                ]
+                ],
+                roughness = np.random.uniform(low = 0.3, high = 0.8)
             ),
         ]
         self.camera = camera.Camera(

@@ -4,8 +4,11 @@ class Plane:
         Represents a plane in the scene
     """
 
-
-    def __init__(self, normal, tangent, bitangent, uMin, uMax, vMin, vMax, center, color):
+    def __init__(
+        self, normal: list[float], tangent: list[float],
+        bitangent: list[float], uMin: float,
+        uMax: float, vMin: float, vMax: float,
+        center: list[float], color: list[float], roughness: float):
         """
             Create a new plane
             Parameters:
@@ -25,3 +28,4 @@ class Plane:
         self.vMax = vMax
         self.center = np.array(center, dtype=np.float32)
         self.color = np.array(color, dtype=np.float32)
+        self.roughness = roughness

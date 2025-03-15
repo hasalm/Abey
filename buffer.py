@@ -34,6 +34,7 @@ class Buffer:
         self.hostMemory[baseIndex : baseIndex + 3] = _sphere.center[:]
         self.hostMemory[baseIndex + 3] = _sphere.radius
         self.hostMemory[baseIndex + 4 : baseIndex + 7] = _sphere.color[:]
+        self.hostMemory[baseIndex + 7] = _sphere.roughness
         self.elements_updated += 1
     
     def recordPlane(self, i: int, _plane: plane.Plane) -> None:
@@ -55,6 +56,7 @@ class Buffer:
         self.hostMemory[baseIndex + 12 : baseIndex + 15]    = _plane.normal[:]
         self.hostMemory[baseIndex + 15]                     = _plane.vMax
         self.hostMemory[baseIndex + 16 : baseIndex + 19] = _plane.color[:]
+        self.hostMemory[baseIndex + 19] = _plane.roughness
         self.elements_updated += 1
     def readFrom(self) -> None:
         """

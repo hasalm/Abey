@@ -3,6 +3,7 @@ struct Sphere {
     vec3 center;
     float radius;
     vec3 color;
+    float roughness;
 };
 struct Camera {
     vec3 position;
@@ -24,6 +25,7 @@ struct Plane {
     vec3 normal;
     float vMax;
     vec3 color;
+    float roughness;
 };
 struct RenderState {
     float t;
@@ -31,6 +33,7 @@ struct RenderState {
     vec3 position;
     vec3 normal;
     bool hit;
+    float roughness;
 };
 // input/output
 layout(local_size_x = 8, local_size_y = 8) in;
@@ -44,6 +47,7 @@ layout(std430, binding = 2) buffer planeData {
     Plane[] planes;
 };
 uniform ivec2 objectCounts;
+layout(rgba32f, binding = 3) readonly uniform image2D noise;
 RenderState trace(Ray ray);
 void hit(Ray ray, Sphere sphere, float tMin, float tMax, inout RenderState renderstate);
 
@@ -51,15 +55,26 @@ void hit(Ray ray, Plane plane, float tMin, float tMax, inout RenderState renders
 void main() {
 	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
     ivec2 screen_size = imageSize(img_output);
-    float horizontalCoefficient = ((float(pixel_coords.x) * 2 - screen_size.x) / screen_size.x);
-    float verticalCoefficient = ((float(pixel_coords.y) * 2 - screen_size.y) / screen_size.x);
+    vec3 finalColor = vec3(0.0);
+    for(int i = 0; i < 4; i++) {
+        vec2 screenDeflection = imageLoad(
+            noise,
+            ivec2(
+                pixel_coords.x + i * screen_size.x,
+                pixel_coords.y
+            )
+        ).xy;
+        float horizontalCoefficient = float(pixel_coords.x) + screenDeflection.x;
+        horizontalCoefficient = (horizontalCoefficient * 2 - screen_size.x) / screen_size.x;
 
     
+        float verticalCoefficient = float(pixel_coords.y) + screenDeflection.y;
+        verticalCoefficient = (verticalCoefficient * 2 - screen_size.y) / screen_size.x;
     Ray ray;
     ray.origin = viewer.position;
     ray.direction = viewer.forwards + horizontalCoefficient * viewer.right + verticalCoefficient * viewer.up;
     vec3 pixel = vec3(1.0);
-    for (int i =0; i < 4; i++) {
+        for (int bounce = 0; bounce < 4; bounce++) {
         RenderState renderState = trace(ray);
 	
 	//early exit
@@ -71,11 +86,22 @@ void main() {
         //set up ray for next trace
         ray.origin = renderState.position;	
         ray.direction = reflect(ray.direction, renderState.normal);
+        vec3 variation = imageLoad(
+                noise,
+                ivec2(
+                    pixel_coords.x + bounce * screen_size.x,
+                    pixel_coords.y
+                )
+            ).xyz;
+            ray.direction = normalize(ray.direction + renderState.roughness * variation);
+        }
+        finalColor += 0.25 * pixel;
     }
-    imageStore(img_output, pixel_coords, vec4(pixel,1.0));
+    imageStore(img_output, pixel_coords, vec4(finalColor, 1.0));
 }
 RenderState trace(Ray ray) {
     RenderState renderState;
+    renderState.hit = false;
     renderState.color = vec3(1.0);
 
     bool hitSomething = false;
@@ -84,19 +110,20 @@ RenderState trace(Ray ray) {
     for (int i = 0; i < objectCounts.x; i++) {
         hit(ray, spheres[i], 0.001, nearestHit, renderState);
     if(renderState.hit) {
-
+            nearestHit = renderState.t;
         hitSomething = true;
-        nearestHit = renderState.t;
         }
     }
     for(int i = 0; i < objectCounts.y; i++) {
         hit(ray, planes[i], 0.001, nearestHit, renderState);
         if(renderState.hit) {
-            hitSomething = true;
             nearestHit = renderState.t;
+            hitSomething = true;
         }
     }
-    renderState.hit = hitSomething;
+    if (hitSomething) {
+        renderState.hit = true;
+    }
     
     return renderState;
     }
@@ -115,6 +142,7 @@ void hit(Ray ray, Sphere sphere, float tMin, float tMax, inout RenderState rende
         renderState.normal = normalize(renderState.position - sphere.center);
         renderState.t = t;
         renderState.color = sphere.color;
+        renderState.roughness = sphere.roughness;
         renderState.hit = true;
         return;
          }
@@ -135,6 +163,7 @@ void hit(Ray ray, Plane plane, float tMin, float tMax, inout RenderState renderS
                 renderState.position = testPoint;
                 renderState.t = t;
                 renderState.color = plane.color;
+                renderState.roughness = plane.roughness;
                 renderState.normal = plane.normal;
                 renderState.hit = true;
                 return;
